@@ -18,7 +18,7 @@ describe("LiveSyncStatus UI & Accessibility", () => {
     expect(formatted).toMatch(/\d{2}:\d{2}:\d{2}/);
   });
 
-  it("renders active syncing state with aria-live and role='status'", () => {
+  it("renders an accessible syncing state without announcing each polling timestamp", () => {
     const mockState: LiveUpdatesState = {
       isSyncing: true,
       isError: false,
@@ -33,7 +33,7 @@ describe("LiveSyncStatus UI & Accessibility", () => {
     );
 
     expect(html).toContain('role="status"');
-    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-live="off"');
     expect(html).toContain("Syncing…");
     expect(html).toContain("animate-spin");
   });
@@ -52,9 +52,10 @@ describe("LiveSyncStatus UI & Accessibility", () => {
       React.createElement(LiveSyncStatusView, { state: mockState }),
     );
 
-    expect(html).toContain('role="status"');
-    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-live="assertive"');
     expect(html).toContain("Sync error");
+    expect(html).toContain("Retry live update synchronization");
 
     // Critical: must not claim "Live" or successful status when active error exists
     expect(html).not.toContain("<span>Live</span>");
@@ -80,7 +81,7 @@ describe("LiveSyncStatus UI & Accessibility", () => {
     );
 
     expect(html).toContain('role="status"');
-    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-live="off"');
     expect(html).toContain("Live");
     expect(html).toContain(formatSyncTime(mockDate));
   });

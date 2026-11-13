@@ -1,5 +1,6 @@
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError } from "@/api";
 import { useLiveUpdates, type LiveUpdatesState } from "../hooks/use-live-updates";
@@ -33,38 +34,40 @@ export function LiveSyncStatusView({ state }: LiveSyncStatusViewProps) {
   // Error state: Never display success or up-to-date while error is active
   if (isError) {
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            role="status"
-            aria-live="polite"
-            aria-label={`Sync error. ${formattedLastSync ? `Last synced at ${formattedLastSync}.` : ""}`}
-            className="flex items-center gap-2"
-          >
-            <Badge
+      <div className="flex items-center gap-2">
+        <span role="alert" aria-live="assertive" className="sr-only">
+          Live update synchronization failed. {errorText}
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
               variant="outline"
-              className="border-destructive/30 bg-destructive/10 text-destructive text-xs font-normal gap-1.5 py-1 px-2.5"
+              size="sm"
+              onClick={() => void state.refetch()}
+              aria-label={`Retry live update synchronization${formattedLastSync ? `. Last successful sync at ${formattedLastSync}` : ""}`}
+              className="border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15"
             >
-              <AlertCircle className="size-3.5 shrink-0" />
-              <span>Sync error</span>
+              <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>Sync error · Retry</span>
               {formattedLastSync && (
                 <span className="text-muted-foreground ml-1 font-mono text-[11px]">
                   (Last: {formattedLastSync})
                 </span>
               )}
-            </Badge>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs max-w-xs">
-          <p className="font-semibold text-destructive">Synchronization failed</p>
-          <p className="text-muted-foreground">{errorText}</p>
-          {formattedLastSync && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Last successful sync: {formattedLastSync}
-            </p>
-          )}
-        </TooltipContent>
-      </Tooltip>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs max-w-xs">
+            <p className="font-semibold text-destructive">Synchronization failed</p>
+            <p className="text-muted-foreground">{errorText}</p>
+            {formattedLastSync && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Last successful sync: {formattedLastSync}
+              </p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </div>
     );
   }
 
@@ -73,7 +76,7 @@ export function LiveSyncStatusView({ state }: LiveSyncStatusViewProps) {
     return (
       <div
         role="status"
-        aria-live="polite"
+        aria-live="off"
         aria-label="Checking for updates"
         className="flex items-center gap-2"
       >
@@ -97,7 +100,7 @@ export function LiveSyncStatusView({ state }: LiveSyncStatusViewProps) {
   return (
     <div
       role="status"
-      aria-live="polite"
+      aria-live="off"
       aria-label={`Live updates active. ${formattedLastSync ? `Synced at ${formattedLastSync}.` : ""}`}
       className="flex items-center gap-2"
     >

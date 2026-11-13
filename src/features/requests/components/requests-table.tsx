@@ -21,6 +21,7 @@ interface RequestsTableProps {
   sitesMap: Map<number, Site>;
   staffMap: Map<number, Staff>;
   sitesLoading: boolean;
+  staffLoading: boolean;
   sortField: SortField;
   sortDirection: SortDirection;
   onToggleSort: (field: SortField) => void;
@@ -32,6 +33,7 @@ export function RequestsTable({
   sitesMap,
   staffMap,
   sitesLoading,
+  staffLoading,
   sortField,
   sortDirection,
   onToggleSort,
@@ -39,11 +41,15 @@ export function RequestsTable({
 }: RequestsTableProps) {
   return (
     <div
-      className="table-container overflow-x-auto rounded-xl border border-border bg-card shadow-xs"
       tabIndex={0}
       role="region"
       aria-label="Requests table"
+      aria-describedby="requests-table-scroll-hint"
+      className="table-container overflow-x-auto rounded-xl border border-border bg-card shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
+      <p id="requests-table-scroll-hint" className="sr-only">
+        Scroll horizontally to see all request columns.
+      </p>
       <Table className="w-full min-w-[980px] text-sm">
         <caption className="sr-only">Helpdesk Requests</caption>
         <TableHeader className="bg-muted/60">
@@ -123,7 +129,9 @@ export function RequestsTable({
             const siteTimezone = site?.timezone;
             const overdue = isRequestOverdue(r, siteTimezone);
             // Rule 3: Resolve assignee name strictly by id from staff endpoint
-            const assigneeName = resolveAssigneeName(r.assignee, staffMap);
+            const assigneeName = staffLoading && r.assignee
+              ? "Loading staff…"
+              : resolveAssigneeName(r.assignee, staffMap);
 
             return (
               <TableRow

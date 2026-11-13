@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "@/api";
+import { Button } from "@/components/ui/button";
 import type { Site, Staff } from "@/features/requests/types";
 import { createDefaultBoardState, parseUrlState, syncUrlState, type BoardState } from "../board-state";
 import { isValidIsoDate } from "../dates";
@@ -17,9 +18,42 @@ import { RequestsTable } from "./requests-table";
 import { RequestsToolbar } from "./requests-toolbar";
 import { RequestDetail } from "./request-detail";
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) return `${error.status}: ${error.message}`;
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+interface QueryErrorNoticeProps {
+  resource: string;
+  error: unknown;
+  hasData: boolean;
+  onRetry: () => void;
+}
+
+function QueryErrorNotice({ resource, error, hasData, onRetry }: QueryErrorNoticeProps) {
+  return (
+    <div
+      role="alert"
+      className="my-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
+    >
+      <p className="min-w-0 break-words">
+        {hasData
+          ? `Could not refresh ${resource}. Showing the last available data.`
+          : `Could not load ${resource}.`} {getErrorMessage(error)}
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        Retry {resource}
+      </Button>
+    </div>
+  );
+}
+
 export function RequestsBoard() {
   const [state, setState] = useState<BoardState>(parseUrlState);
   const [pageSize, setPageSize] = useState(10);
+  const boardHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousRequestId = useRef(state.requestId ?? null);
 
   // Sync state to URL and listen to popstate for browser navigation
   useEffect(() => {
@@ -33,6 +67,13 @@ export function RequestsBoard() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (previousRequestId.current !== null && state.requestId == null) {
+      boardHeadingRef.current?.focus();
+    }
+    previousRequestId.current = state.requestId ?? null;
+  }, [state.requestId]);
 
   const isDateRangeValid =
     isValidIsoDate(state.from) && isValidIsoDate(state.to) && state.from <= state.to;
@@ -129,17 +170,11 @@ export function RequestsBoard() {
   const startRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endRow = Math.min(currentPage * pageSize, totalRows);
 
-  const isLoading = requestsQuery.isLoading || sitesQuery.isLoading || staffQuery.isLoading;
-  const isRetrying = requestsQuery.isFetching && requestsQuery.failureCount > 0;
-
-  const activeError = requestsQuery.error || sitesQuery.error || staffQuery.error;
-  const errorMessage = activeError
-    ? activeError instanceof ApiError
-      ? `${activeError.status}: ${activeError.message}`
-      : activeError instanceof Error
-        ? activeError.message
-        : String(activeError)
-    : null;
+  // Requests need site data for correct site-local date filtering; staff can load in parallel.
+  const isLoading = requestsQuery.isLoading || sitesQuery.isLoading;
+  const isRetrying = [requestsQuery, sitesQuery, staffQuery].some(
+    (query) => query.isFetching && query.failureCount > 0,
+  );
 
   const toggleSort = (field: SortField) => {
     setState((prev) => {
@@ -184,6 +219,10 @@ export function RequestsBoard() {
         staffMap={staffMap}
         sitesLoading={sitesQuery.isLoading}
         staffLoading={staffQuery.isLoading}
+        sitesError={sitesQuery.error}
+        staffError={staffQuery.error}
+        onRetrySites={() => void sitesQuery.refetch()}
+        onRetryStaff={() => void staffQuery.refetch()}
         onBack={handleBackToBoard}
       />
     );
@@ -192,7 +231,11 @@ export function RequestsBoard() {
   return (
     <div className="w-full">
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h1
+          ref={boardHeadingRef}
+          tabIndex={-1}
+          className="text-2xl font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           Requests board
         </h1>
       </div>
@@ -200,7 +243,7 @@ export function RequestsBoard() {
       <RequestsStatusTabs
         value={state.status === "canceled" ? "all" : state.status}
         counts={statusCounts}
-        loading={isLoading}
+        loading={isLoading || !requestsQuery.data}
         onChange={(status) =>
           setState((prev) => ({ ...prev, status, page: 1 }))
         }
@@ -258,14 +301,29 @@ export function RequestsBoard() {
             }.`}
       </p>
 
-      {/* Error state */}
-      {errorMessage && (
-        <div
-          role="alert"
-          className="error-banner my-4 rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive font-medium"
-        >
-          Could not load requests: {errorMessage}
-        </div>
+      {requestsQuery.error && (
+        <QueryErrorNotice
+          resource="requests"
+          error={requestsQuery.error}
+          hasData={requestsQuery.data !== undefined}
+          onRetry={() => void requestsQuery.refetch()}
+        />
+      )}
+      {sitesQuery.error && (
+        <QueryErrorNotice
+          resource="site information"
+          error={sitesQuery.error}
+          hasData={sitesQuery.data !== undefined}
+          onRetry={() => void sitesQuery.refetch()}
+        />
+      )}
+      {staffQuery.error && (
+        <QueryErrorNotice
+          resource="staff directory"
+          error={staffQuery.error}
+          hasData={staffQuery.data !== undefined}
+          onRetry={() => void staffQuery.refetch()}
+        />
       )}
 
       {/* Loading state indicator */}
@@ -280,7 +338,7 @@ export function RequestsBoard() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !errorMessage && totalRows === 0 && (
+      {!isLoading && isDateRangeValid && requestsQuery.isSuccess && sitesQuery.isSuccess && totalRows === 0 && (
         <div
           role="status"
           className="empty-state my-4 rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground"
@@ -290,13 +348,14 @@ export function RequestsBoard() {
       )}
 
       {/* Requests table */}
-      {!isLoading && totalRows > 0 && (
+      {!isLoading && requestsQuery.data !== undefined && sitesQuery.data !== undefined && totalRows > 0 && (
         <>
           <RequestsTable
             requests={paginatedRequests}
             sitesMap={sitesMap}
             staffMap={staffMap}
             sitesLoading={sitesQuery.isLoading}
+            staffLoading={staffQuery.isLoading}
             sortField={state.sortField}
             sortDirection={state.sortDirection}
             onToggleSort={toggleSort}

@@ -15,6 +15,14 @@ import {
 } from "@/components/ui/sidebar";
 
 export function ManagerSidebar() {
+  const requestsHref = (() => {
+    if (typeof window === "undefined") return "/";
+    const url = new URL(window.location.href);
+    url.searchParams.delete("requestId");
+    url.searchParams.delete("request");
+    return `${url.pathname}${url.search}`;
+  })();
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
@@ -39,7 +47,7 @@ export function ManagerSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton isActive tooltip="Requests Board" asChild>
-                  <a href="#" aria-current="page">
+                  <a href={requestsHref} aria-current="page">
                     <Inbox className="size-4" />
                     <span>Requests</span>
                   </a>
