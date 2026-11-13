@@ -21,6 +21,25 @@ export function daysAgo(days: number, today = new Date()): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Today's browser-local calendar date, minus `days` calendar days. */
+export function browserLocalDaysAgo(days: number, today = new Date()): string {
+  const date = new Date(today);
+  date.setDate(date.getDate() - days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** Add calendar days to a YYYY-MM-DD date without applying a timezone offset. */
+export function addCalendarDays(isoDate: string, days: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) throw new Error(`Not a YYYY-MM-DD date: ${isoDate}`);
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + days));
+  return date.toISOString().slice(0, 10);
+}
+
 /** Check if a string is a valid YYYY-MM-DD calendar date. */
 export function isValidIsoDate(isoDate: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return false;

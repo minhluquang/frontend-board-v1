@@ -6,7 +6,7 @@ import {
   listSites,
   listStaff,
 } from "../api/requests-api";
-import { toApiDate } from "../dates";
+import { addCalendarDays, toApiDate } from "../dates";
 
 export function useSitesQuery() {
   return useQuery({
@@ -29,8 +29,10 @@ export function useRequestsQuery(from: string, to: string, enabled = true) {
     queryKey: ["requests", from, to],
     queryFn: () =>
       fetchAllRequests({
-        created_from: toApiDate(from),
-        created_to: toApiDate(to),
+        // The API does not document which timezone it uses for these date filters.
+        // Fetch a one-day margin, then apply the exact site-local range in rules.ts.
+        created_from: toApiDate(addCalendarDays(from, -1)),
+        created_to: toApiDate(addCalendarDays(to, 1)),
       }),
     enabled,
   });

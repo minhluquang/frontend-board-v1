@@ -1,5 +1,5 @@
 import type { Status } from "@/features/requests/types";
-import { daysAgo, isValidIsoDate } from "./dates";
+import { browserLocalDaysAgo, isValidIsoDate } from "./dates";
 import type { SortDirection, SortField } from "./rules";
 
 export interface BoardState {
@@ -15,8 +15,9 @@ export interface BoardState {
 
 export function createDefaultBoardState(): BoardState {
   return {
-    from: daysAgo(30),
-    to: daysAgo(0),
+    // The selected range includes today, so 29 days back gives 30 calendar days total.
+    from: browserLocalDaysAgo(29),
+    to: browserLocalDaysAgo(0),
     siteId: null,
     status: "all",
     sortField: "created",
@@ -39,8 +40,8 @@ export function parseUrlState(): BoardState {
   const pageParam = params.get("page");
   const requestParam = params.get("requestId") || params.get("request");
 
-  const from = fromParam && isValidIsoDate(fromParam) ? fromParam : daysAgo(30);
-  const to = toParam && isValidIsoDate(toParam) ? toParam : daysAgo(0);
+  const from = fromParam && isValidIsoDate(fromParam) ? fromParam : browserLocalDaysAgo(29);
+  const to = toParam && isValidIsoDate(toParam) ? toParam : browserLocalDaysAgo(0);
   const siteId = siteParam && /^\d+$/.test(siteParam) ? Number(siteParam) : null;
   const status =
     statusParam && ["pending", "processing", "complete"].includes(statusParam)
