@@ -1,4 +1,4 @@
-import type { HelpdeskRequest, Site, Staff, Status } from "../types";
+import type { HelpdeskRequest, Site, Staff, Status } from "@/types";
 import { localDate } from "./dates";
 
 export type SortField = "created" | "due";

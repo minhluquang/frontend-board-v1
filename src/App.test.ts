@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseUrlState, syncUrlState } from "./App";
+import { parseUrlState, syncUrlState } from "@/features/requests/board-state";
 
 describe("URL synchronization", () => {
   const originalWindow = globalThis.window;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { HelpdeskRequest, Site, Staff } from "../types";
+import type { HelpdeskRequest, Site, Staff } from "@/types";
 import {
   clampPage,
   countMissingTimezoneRequests,

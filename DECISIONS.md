@@ -16,6 +16,15 @@ Write in English. Short bullet points are fine. Reviewers read this file alongsi
 - **Client-Side Pagination**: After business filters and sorting, requests are paginated at 25 rows per page. The page is synchronized with the URL query parameter (`page`), reset to 1 when filters or sorting change, clamped within valid bounds `[1, totalPages]`, and equipped with accessible Previous/Next controls, current/total pages, and a visible count range.
 - **Bounded API Retry Policy**: TanStack Query receives a 0-indexed `failureCount`. `MAX_RETRY_COUNT = 2` means exactly two retries are allowed (attempts `failureCount: 0` and `failureCount: 1` return true; `failureCount: 2` rejects the third retry). Ordinary 4xx errors are never retried. For non-429 errors (5xx/network), exponential backoff starts at 1 second (`1000 * 2^failureCount`) and increases on each retry. For HTTP 429, valid non-negative `Retry-After` delays are honored in full (including values > 60s); missing, negative, or NaN `Retry-After` values explicitly fall back to the standard exponential backoff starting at 1000ms. Retries in progress display a background notification so loading states remain usable.
 - **Bidirectional URL State Synchronization**: Filter parameters (`from`, `to`, `site`, `status`, `sort`, `direction`, `page`) are initialized from `window.location.search`, synchronized back to the URL via `history.replaceState`, and update on `popstate` events.
+- **Tailwind CSS v4 & shadcn/ui Architecture**: Adopted Tailwind CSS v4 using the official `@tailwindcss/vite` plugin and modern CSS-first `@import "tailwindcss";` syntax without legacy v3 `tailwind.config.js` files. Initialized shadcn/ui with consistent `@/*` path aliases across Vite and TypeScript. Included only necessary components (Sidebar, Button, Badge, Card, Select, Table, Separator, Tooltip).
+- **Feature-Based Structure**: Modularized codebase into domain-oriented ownership:
+  - `src/app`: Application composition, providers (`QueryClientProvider`, `TooltipProvider`), and top-level layout.
+  - `src/components/layout`: Responsive manager header and collapsible desktop/mobile sidebar shell.
+  - `src/components/ui`: Self-contained shadcn UI primitives.
+  - `src/features/requests`: All request board views, toolbar filters, table, pagination, URL state syncing, query hooks, request-specific date calculations, business rules, and corresponding tests.
+  - `src/lib`: Strictly genuinely shared utilities (`src/lib/utils.ts` for class-name merging).
+  - `src/api.ts`: Preserved as a thin, decoupled API transport layer.
+- **Manager Shell Usability**: Implemented a responsive header and sidebar supporting desktop collapse (via toggle button and rail) and mobile drawer mode. Navigation is strictly limited to real working features ("Requests") with no dead links, fake user profiles, or non-functional controls.
 
 ## What I found in the API or data
 
