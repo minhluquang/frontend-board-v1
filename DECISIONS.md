@@ -4,12 +4,23 @@ Write in English. Short bullet points are fine. Reviewers read this file alongsi
 
 ## What I assumed
 
+- **Level 2 Request Details Navigation & State Preservation**: Integrated `requestId` into the existing URL state manager without adding an external routing library. Opening details creates a browser history entry; browser Back and Forward restore the selected view. Returning to the board preserves filters, sort order, and page.
+- **Full Events Pagination Traversal**: `src/features/requests/api/requests-api.ts` fetches every page from `GET /v1/requests/{id}/events` using the documented `per_page: 50` and `has_more` field, so event history is not truncated to page 1.
+- **Separation of Rule 5 (Timeline Hiding) and Rule 6 (First Response)**:
+  - Rule 5 defines which events are hidden from the visible timeline: an event with `reverts_id` undoes the event it references; by default, both the undoing event and the undone target event are hidden. An optional checkbox allows viewing undone events for auditability.
+  - Rule 6 defines first response: the earliest event (by `at`) with status `processing` and a non-null `actor_id` (System events have `actor_id: null`).
+  - We keep these calculations completely separate: Rule 6 evaluates across the complete fetched history. Following docs/rules.md literally, if the first qualifying event was later reverted by an undoing event, it still qualifies as the first response under Rule 6 while being hidden from the default timeline under Rule 5. A focused test explicitly verifies this scenario.
+- **Staff Registry Resolution for Event Actors (Rule 3)**: Event `actor_id` is resolved strictly via `/v1/staff`. Neither `actor_name` nor `assignee_name` from event payloads are ever displayed to prevent stale data. If `actor_id` is null, the event actor is displayed as "System"; if unknown in the registry, it falls back to `Staff #<id>`.
+- **Timezone and Wall-Clock Handling (Rule 4)**:
+  - `created_at` and `updated_at` (ISO 8601 UTC) and event `at` (Unix seconds) are converted to instants and formatted in the site's IANA timezone, visibly naming the timezone (e.g. `YYYY-MM-DD HH:mm:ss (Asia/Singapore)`).
+  - Event `due_at` is treated strictly as site-local wall-clock text in `DD/MM/YYYY HH:mm` format. It is parsed field-by-field with regex (`parseSiteDueAt`) and formatted directly with the site timezone name, without passing through browser-local `Date` parsing or applying UTC shifts.
+  - If site or timezone data is unavailable, an explicit warning banner is rendered and dates display `"Missing timezone"` without silently defaulting to UTC.
 - **TanStack Query Installation**: Installed `@tanstack/react-query` (`^5.x`) because it was not installed in `package.json`. It provides declarative caching, loading/error states, and request deduplication for sites, staff, and paginated requests.
-- **Strict Level 1 Scope**: Limited implementation strictly to the read-only Request Board. Request creation, updates, detail panels, event history, and live polling were left out as specified.
-- **Full Multi-page Traversal**: In `src/api.ts`, `fetchAllRequests` fetches all pages using the documented max `per_page: 100`, checking `total_pages` and `has_more` so that requests are never silently truncated to the first page.
+- **Read-only Scope**: The app only reads from the provided API. Request creation and updates are not implemented because no write workflow is in scope.
+- **Full Multi-page Traversal**: `src/features/requests/api/requests-api.ts` fetches all request pages using the documented max `per_page: 100`, checking `total_pages` and `has_more` so requests are never silently truncated to the first page.
 - **Site-Local Date Filtering (Rule 1)**: Each request's `created_at` instant (UTC) is mapped to its site's IANA timezone (`/v1/sites`). A request counts if and only if its site-local date is between the selected `from` and `to` inclusive. Canceled requests, requests with `deleted_at` set, and requests with `merged_into_id` set are strictly excluded.
 - **Missing Site/Timezone Data & Data Quality Warning**: Requests lacking a matching site or valid timezone cannot be converted into a site-local calendar date; they are kept out of normal date-filtered results without defaulting to UTC. A visible data quality warning notifies users of the exact count of otherwise eligible requests that could not be date-filtered because their inclusion in the selected date range cannot be determined. Canceled, deleted, and merged requests are strictly excluded from this warning count.
-- **Site-Local Date Formatting and Timezone Display**: In `src/lib/dates.ts`, `formatSiteDateTime` formats the UTC `created_at` instant using the site's IANA timezone and visibly appends the IANA timezone name. If the site or timezone is missing, it returns `"Missing timezone"` without claiming an inaccurate UTC date. `due_on` is preserved as a site-local calendar date without conversion as an instant.
+- **Site-Local Date Formatting and Timezone Display**: In `src/features/requests/dates.ts`, `formatSiteDateTime` formats the UTC `created_at` instant using the site's IANA timezone and visibly appends the IANA timezone name. If the site or timezone is missing, it returns `"Missing timezone"` without claiming an inaccurate UTC date. `due_on` is preserved as a site-local calendar date without conversion as an instant.
 - **Overdue Determination (Rule 2)**: Overdue status is computed using the site's IANA timezone, never the browser's timezone. A request is overdue if and only if its status is `pending` or `processing`, `due_on` is non-null, and `due_on` is strictly earlier than today's date in that site's timezone. Requests that are `complete` or have `due_on: null` are never overdue. If a request has a `due_on` date but its site timezone is missing, `isRequestOverdue` returns `null` (unknown) and the UI renders "Missing timezone" to avoid claiming an inaccurate status.
 - **Staff Registry Resolution (Rule 3)**: Request payloads' `assignee.name` is never rendered because it can be stale. Assignee names are resolved using `/v1/staff` by `assignee.id`. Requests with `assignee: null` render an em dash (`—`), and unknown staff IDs fallback safely to `Staff #<id>` without ever exposing `assignee.name`.
 - **Due Date Sorting with Nulls**: When sorting by due date (ascending or descending), records with `due_on: null` are placed at the bottom so actionable deadlines appear first, followed by deterministic secondary sorting by `created_at` desc and `id` desc.
@@ -17,13 +28,17 @@ Write in English. Short bullet points are fine. Reviewers read this file alongsi
 - **Bounded API Retry Policy**: TanStack Query receives a 0-indexed `failureCount`. `MAX_RETRY_COUNT = 2` means exactly two retries are allowed (attempts `failureCount: 0` and `failureCount: 1` return true; `failureCount: 2` rejects the third retry). Ordinary 4xx errors are never retried. For non-429 errors (5xx/network), exponential backoff starts at 1 second (`1000 * 2^failureCount`) and increases on each retry. For HTTP 429, valid non-negative `Retry-After` delays are honored in full (including values > 60s); missing, negative, or NaN `Retry-After` values explicitly fall back to the standard exponential backoff starting at 1000ms. Retries in progress display a background notification so loading states remain usable.
 - **Bidirectional URL State Synchronization**: Filter parameters (`from`, `to`, `site`, `status`, `sort`, `direction`, `page`) are initialized from `window.location.search`, synchronized back to the URL via `history.replaceState`, and update on `popstate` events.
 - **Tailwind CSS v4 & shadcn/ui Architecture**: Adopted Tailwind CSS v4 using the official `@tailwindcss/vite` plugin and modern CSS-first `@import "tailwindcss";` syntax without legacy v3 `tailwind.config.js` files. Initialized shadcn/ui with consistent `@/*` path aliases across Vite and TypeScript. Included only necessary components (Sidebar, Button, Badge, Card, Select, Table, Separator, Tooltip).
-- **Feature-Based Structure**: Modularized codebase into domain-oriented ownership:
+- **Feature-Based Structure**: Domain code is owned by `src/features/requests`:
+  - `api`: request, event, site, and staff endpoint functions; uses the shared HTTP client in `src/api.ts`.
+  - `hooks`: TanStack Query hooks for request data.
+  - `components`: board and request detail UI.
+  - `types.ts`, `rules.ts`, and `dates.ts`: API shapes and request-specific business logic. No schema directory is added until runtime payload validation is needed.
+  - Tests are kept beside the feature code they cover.
   - `src/app`: Application composition, providers (`QueryClientProvider`, `TooltipProvider`), and top-level layout.
   - `src/components/layout`: Responsive manager header and collapsible desktop/mobile sidebar shell.
   - `src/components/ui`: Self-contained shadcn UI primitives.
-  - `src/features/requests`: All request board views, toolbar filters, table, pagination, URL state syncing, query hooks, request-specific date calculations, business rules, and corresponding tests.
-  - `src/lib`: Strictly genuinely shared utilities (`src/lib/utils.ts` for class-name merging).
-  - `src/api.ts`: Preserved as a thin, decoupled API transport layer.
+  - `src/lib`: Strictly shared utilities (`src/lib/utils.ts` for class-name merging).
+  - `src/api.ts`: Shared HTTP transport, API errors, configuration, and query retry policy.
 - **Manager Shell Usability**: Implemented a responsive header and sidebar supporting desktop collapse (via toggle button and rail) and mobile drawer mode. Navigation is strictly limited to real working features ("Requests") with no dead links, fake user profiles, or non-functional controls.
 
 ## What I found in the API or data
@@ -38,8 +53,8 @@ Write in English. Short bullet points are fine. Reviewers read this file alongsi
 - Used the AI coding assistant to analyze the timezone requirements, boundary conditions across Jakarta, Singapore, and Sydney, TanStack Query retry mechanics, and client-side pagination.
 - Designed comprehensive test suites covering timezone boundaries, missing timezone safeguards, retry policies, and URL state synchronization.
 
-## Trade-offs and what I would do next
+## Trade-offs and next steps
 
 - **Large Date Ranges**: In Level 1, fetching all pages across a 30-day window is lightweight. For multi-year date ranges with tens of thousands of requests, we would implement virtualized rendering (`@tanstack/react-virtual`) or server-side pagination with infinite scrolling.
 - **Column Visibility**: Allow users to toggle column visibility or reorder table columns.
-- **Level 2/3 Preparation**: The TanStack Query client structure and business rules are decoupled from UI components, making it straightforward to plug in `/v1/changes` streaming and event timeline views in subsequent levels.
+- **Level 3**: Add change-feed polling with cursor expiration recovery and a visible last-updated time.

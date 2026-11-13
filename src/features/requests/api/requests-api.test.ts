@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
-  fetchAllRequests,
   getQueryRetryDelay,
   parseRetryAfterSeconds,
   shouldRetryQuery,
-} from "./api";
-import type { HelpdeskRequest, Page } from "./types";
+} from "@/api";
+import { fetchAllRequestEvents, fetchAllRequests } from "./requests-api";
+import type { HelpdeskRequest, Page, RequestEvent } from "../types";
 
 function createMockReq(id: number): HelpdeskRequest {
   return {
@@ -134,6 +134,101 @@ describe("fetchAllRequests", () => {
     } as unknown as Response);
 
     await expect(fetchAllRequests()).rejects.toThrow(ApiError);
+  });
+});
+
+describe("fetchAllRequestEvents", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
+  });
+
+  function createMockEvent(id: number): RequestEvent {
+    return {
+      id,
+      status: "processing",
+      at: 1791874530 + id,
+      actor_id: 304,
+      actor_name: "Benjamin Tan",
+      assignee_name: null,
+      due_at: "07/10/2026 10:00",
+      note: `Event note ${id}`,
+      reverts_id: null,
+    };
+  }
+
+  it("loads single page when has_more is false", async () => {
+    const page1: Page<RequestEvent> = {
+      data: [createMockEvent(1), createMockEvent(2)],
+      page: 1,
+      per_page: 50,
+      has_more: false,
+    };
+
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => page1,
+    } as Response);
+
+    const events = await fetchAllRequestEvents(41210);
+
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.id)).toEqual([1, 2]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    const calledUrl = new URL(vi.mocked(globalThis.fetch).mock.calls[0][0] as string);
+    expect(calledUrl.pathname).toContain("/v1/requests/41210/events");
+    expect(calledUrl.searchParams.get("page")).toBe("1");
+  });
+
+  it("loads every page across pagination using has_more", async () => {
+    const page1: Page<RequestEvent> = {
+      data: [createMockEvent(101), createMockEvent(102)],
+      page: 1,
+      per_page: 2,
+      has_more: true,
+    };
+    const page2: Page<RequestEvent> = {
+      data: [createMockEvent(103), createMockEvent(104)],
+      page: 2,
+      per_page: 2,
+      has_more: true,
+    };
+    const page3: Page<RequestEvent> = {
+      data: [createMockEvent(105)],
+      page: 3,
+      per_page: 2,
+      has_more: false,
+    };
+
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => page1 } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => page2 } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => page3 } as Response);
+
+    const events = await fetchAllRequestEvents(41210);
+
+    expect(events).toHaveLength(5);
+    expect(events.map((e) => e.id)).toEqual([101, 102, 103, 104, 105]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("throws ApiError when fetch fails", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      headers: new Headers(),
+      json: async () => ({ error: "Database error" }),
+    } as unknown as Response);
+
+    await expect(fetchAllRequestEvents(41210)).rejects.toThrow(ApiError);
   });
 });
 

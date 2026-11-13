@@ -1,6 +1,4 @@
-// A thin client for the helpdesk API. Extend it; don't scatter fetch calls through components.
-
-import type { HelpdeskRequest, Page, RequestEvent, Site, Staff } from "./types";
+// A thin HTTP client for the helpdesk API. Domain endpoints live inside their feature.
 
 const BASE = (import.meta.env.HELPDESK_URL ?? "").replace(/\/$/, "");
 const TOKEN = import.meta.env.HELPDESK_TOKEN ?? "";
@@ -88,49 +86,3 @@ export async function get<T>(path: string, params: Record<string, string | numbe
   }
   return (await response.json()) as T;
 }
-
-export const listRequests = (params: { page?: number; per_page?: number; created_from?: string; created_to?: string; status?: string }) =>
-  get<Page<HelpdeskRequest>>("/v1/requests", params);
-
-/**
- * Fetch all pages of requests matching the provided filters.
- * Inspects `total_pages`, `has_more`, or page size cutoff to traverse all pages.
- */
-export async function fetchAllRequests(
-  params: { created_from?: string; created_to?: string; status?: string; per_page?: number } = {},
-): Promise<HelpdeskRequest[]> {
-  const perPage = params.per_page ?? 100;
-  let page = 1;
-  const allRequests: HelpdeskRequest[] = [];
-
-  while (true) {
-    const res = await listRequests({ ...params, page, per_page: perPage });
-    allRequests.push(...res.data);
-
-    if (typeof res.total_pages === "number") {
-      if (page >= res.total_pages || res.data.length === 0) {
-        break;
-      }
-    } else if (typeof res.has_more === "boolean") {
-      if (!res.has_more || res.data.length === 0) {
-        break;
-      }
-    } else {
-      if (res.data.length < perPage) {
-        break;
-      }
-    }
-
-    page++;
-  }
-
-  return allRequests;
-}
-
-export const getRequest = (id: number) => get<HelpdeskRequest>(`/v1/requests/${id}`);
-
-export const listEvents = (id: number, page = 1) => get<Page<RequestEvent>>(`/v1/requests/${id}/events`, { page });
-
-export const listSites = () => get<{ data: Site[] }>("/v1/sites");
-
-export const listStaff = () => get<{ data: Staff[] }>("/v1/staff");

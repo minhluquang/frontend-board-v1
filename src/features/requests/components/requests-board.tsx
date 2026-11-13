@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/api";
-import type { Site, Staff } from "@/types";
+import type { Site, Staff } from "@/features/requests/types";
 import { parseUrlState, syncUrlState, type BoardState } from "../board-state";
 import { isValidIsoDate } from "../dates";
-import { useRequestsQuery, useSitesQuery, useStaffQuery } from "../queries";
+import { useRequestsQuery, useSitesQuery, useStaffQuery } from "../hooks/queries";
 import {
   clampPage,
   countMissingTimezoneRequests,
@@ -15,6 +15,7 @@ import {
 import { RequestsPagination } from "./requests-pagination";
 import { RequestsTable } from "./requests-table";
 import { RequestsToolbar } from "./requests-toolbar";
+import { RequestDetail } from "./request-detail";
 
 export function RequestsBoard() {
   const [state, setState] = useState<BoardState>(parseUrlState);
@@ -144,6 +145,31 @@ export function RequestsBoard() {
     });
   };
 
+  const handleSelectRequest = (id: number) => {
+    const nextState: BoardState = { ...state, requestId: id };
+    syncUrlState(nextState, true);
+    setState(nextState);
+  };
+
+  const handleBackToBoard = () => {
+    const nextState: BoardState = { ...state, requestId: null };
+    syncUrlState(nextState, false);
+    setState(nextState);
+  };
+
+  if (typeof state.requestId === "number" && !isNaN(state.requestId)) {
+    return (
+      <RequestDetail
+        requestId={state.requestId}
+        sitesMap={sitesMap}
+        staffMap={staffMap}
+        sitesLoading={sitesQuery.isLoading}
+        staffLoading={staffQuery.isLoading}
+        onBack={handleBackToBoard}
+      />
+    );
+  }
+
   return (
     <div className="w-full">
       <div className="mb-4">
@@ -245,6 +271,7 @@ export function RequestsBoard() {
             sortField={state.sortField}
             sortDirection={state.sortDirection}
             onToggleSort={toggleSort}
+            onSelectRequest={handleSelectRequest}
           />
 
           <RequestsPagination

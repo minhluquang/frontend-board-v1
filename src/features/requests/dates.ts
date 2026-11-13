@@ -68,3 +68,65 @@ export function formatSiteDateTime(instant: Date | string, timeZone?: string | n
     return `Invalid timezone (${timeZone})`;
   }
 }
+
+/**
+ * Convert an event's Unix seconds timestamp to an instant, format it in the site's IANA timezone,
+ * and visibly name the timezone.
+ * Returns "Missing timezone" if timezone is omitted or blank.
+ */
+export function formatUnixSeconds(seconds: number | null | undefined, timeZone?: string | null): string {
+  if (seconds === null || seconds === undefined) {
+    return "Missing timestamp";
+  }
+  if (!timeZone || !timeZone.trim()) {
+    return "Missing timezone";
+  }
+  if (!Number.isFinite(seconds)) {
+    return "Invalid date";
+  }
+  const instant = new Date(seconds * 1000);
+  return formatSiteDateTime(instant, timeZone);
+}
+
+export interface ParsedSiteDueAt {
+  day: string;
+  month: string;
+  year: string;
+  hour: string;
+  minute: string;
+  second?: string;
+}
+
+/**
+ * Parses site-local wall-clock due_at text in "DD/MM/YYYY HH:mm" (or with optional seconds) format.
+ * Parses fields explicitly; does not pass through browser-local Date parsing or apply UTC shifting.
+ */
+export function parseSiteDueAt(value: string | null | undefined): ParsedSiteDueAt | null {
+  if (!value || typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(trimmed);
+  if (!match) return null;
+  const [, day, month, year, hour, minute, second] = match;
+  return { day, month, year, hour, minute, second };
+}
+
+/**
+ * Formats event due_at site-local wall-clock text in the site's timezone, visibly naming the timezone.
+ * Explicitly parses fields without Date conversions.
+ * Returns "—" if due_at is null/empty.
+ * Returns "Missing timezone" if site timezone is missing.
+ */
+export function formatSiteDueAt(dueAt: string | null | undefined, timeZone?: string | null): string {
+  if (dueAt === null || dueAt === undefined || dueAt.trim() === "") {
+    return "—";
+  }
+  if (!timeZone || !timeZone.trim()) {
+    return "Missing timezone";
+  }
+  const parsed = parseSiteDueAt(dueAt);
+  if (!parsed) {
+    return "Invalid date format";
+  }
+  const secPart = parsed.second ? `:${parsed.second}` : "";
+  return `${parsed.year}-${parsed.month}-${parsed.day} ${parsed.hour}:${parsed.minute}${secPart} (${timeZone})`;
+}

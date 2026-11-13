@@ -11,6 +11,9 @@ describe("URL synchronization", () => {
       replaceState: vi.fn((_state: unknown, _title: string, url: string) => {
         mockLocation.href = new URL(url, mockLocation.origin).href;
       }),
+      pushState: vi.fn((_state: unknown, _title: string, url: string) => {
+        mockLocation.href = new URL(url, mockLocation.origin).href;
+      }),
     };
 
     vi.stubGlobal("window", {
@@ -114,6 +117,67 @@ describe("URL synchronization", () => {
       null,
       "",
       "/?from=2026-10-01&to=2026-10-31&sort=created&direction=desc&page=1",
+    );
+  });
+
+  it("parses valid requestId from URL parameters", () => {
+    window.location.search = "?requestId=41210";
+    expect(parseUrlState().requestId).toBe(41210);
+
+    // Also supports ?request=41210
+    window.location.search = "?request=41210";
+    expect(parseUrlState().requestId).toBe(41210);
+  });
+
+  it("falls back to null when requestId is missing or invalid", () => {
+    window.location.search = "";
+    expect(parseUrlState().requestId).toBeNull();
+
+    window.location.search = "?requestId=notanumber";
+    expect(parseUrlState().requestId).toBeNull();
+  });
+
+  it("uses history.pushState when navigating into request details with push = true", () => {
+    syncUrlState(
+      {
+        from: "2026-10-01",
+        to: "2026-10-31",
+        siteId: 11,
+        status: "processing",
+        sortField: "created",
+        sortDirection: "desc",
+        page: 3,
+        requestId: 41210,
+      },
+      true,
+    );
+
+    expect(window.history.pushState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/?from=2026-10-01&to=2026-10-31&site=11&status=processing&sort=created&direction=desc&page=3&requestId=41210",
+    );
+  });
+
+  it("removes requestId while preserving existing filters and page when returning to board", () => {
+    syncUrlState(
+      {
+        from: "2026-10-01",
+        to: "2026-10-31",
+        siteId: 11,
+        status: "processing",
+        sortField: "created",
+        sortDirection: "desc",
+        page: 3,
+        requestId: null,
+      },
+      false,
+    );
+
+    expect(window.history.replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/?from=2026-10-01&to=2026-10-31&site=11&status=processing&sort=created&direction=desc&page=3",
     );
   });
 });

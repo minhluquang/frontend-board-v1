@@ -1,4 +1,4 @@
-import type { HelpdeskRequest, Site, Staff } from "@/types";
+import type { HelpdeskRequest, Site, Staff } from "@/features/requests/types";
 import { formatSiteDateTime } from "../dates";
 import {
   isRequestOverdue,
@@ -24,6 +24,7 @@ interface RequestsTableProps {
   sortField: SortField;
   sortDirection: SortDirection;
   onToggleSort: (field: SortField) => void;
+  onSelectRequest?: (id: number) => void;
 }
 
 export function RequestsTable({
@@ -34,6 +35,7 @@ export function RequestsTable({
   sortField,
   sortDirection,
   onToggleSort,
+  onSelectRequest,
 }: RequestsTableProps) {
   return (
     <div
@@ -133,8 +135,34 @@ export function RequestsTable({
                 }
               >
                 <TableCell className="font-medium">{siteName}</TableCell>
-                <TableCell className="font-mono text-xs">{r.ref}</TableCell>
-                <TableCell className="font-medium">{r.title}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {onSelectRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectRequest(r.id)}
+                      className="font-mono text-primary underline-offset-4 hover:underline cursor-pointer text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs"
+                      aria-label={`View details for ${r.ref}`}
+                    >
+                      {r.ref}
+                    </button>
+                  ) : (
+                    r.ref
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {onSelectRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectRequest(r.id)}
+                      className="text-foreground hover:text-primary underline-offset-4 hover:underline cursor-pointer text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xs font-medium"
+                      aria-label={`View details for ${r.title}`}
+                    >
+                      {r.title}
+                    </button>
+                  ) : (
+                    r.title
+                  )}
+                </TableCell>
                 <TableCell>
                   {r.priority === "High" ? (
                     <Badge variant="destructive" className="badge badge-priority-high">

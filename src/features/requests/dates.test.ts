@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { daysAgo, formatSiteDateTime, isValidIsoDate, localDate, toApiDate } from "./dates";
+import {
+  daysAgo,
+  formatSiteDateTime,
+  formatSiteDueAt,
+  formatUnixSeconds,
+  isValidIsoDate,
+  localDate,
+  parseSiteDueAt,
+  toApiDate,
+} from "./dates";
 
 describe("toApiDate", () => {
   it("turns an ISO date into the API's DD/MM/YYYY", () => {
@@ -86,5 +95,89 @@ describe("formatSiteDateTime", () => {
 
   it("handles invalid date strings gracefully", () => {
     expect(formatSiteDateTime("not-a-date", "Asia/Singapore")).toBe("Invalid date");
+  });
+});
+
+describe("formatUnixSeconds", () => {
+  // 1791874530 = 2026-10-13T06:55:30Z (Unix seconds)
+  // In Asia/Singapore (+8h): 2026-10-13 14:55:30 (Asia/Singapore)
+  // In Australia/Sydney (AEDT, +11h): 2026-10-13 17:55:30 (Australia/Sydney)
+  // In Asia/Jakarta (+7h): 2026-10-13 13:55:30 (Asia/Jakarta)
+  const sampleUnixSeconds = 1791874530;
+
+  it("converts Unix seconds to instant and formats in site timezone", () => {
+    expect(formatUnixSeconds(sampleUnixSeconds, "Asia/Singapore")).toBe(
+      "2026-10-13 14:55:30 (Asia/Singapore)",
+    );
+    expect(formatUnixSeconds(sampleUnixSeconds, "Australia/Sydney")).toBe(
+      "2026-10-13 17:55:30 (Australia/Sydney)",
+    );
+    expect(formatUnixSeconds(sampleUnixSeconds, "Asia/Jakarta")).toBe(
+      "2026-10-13 13:55:30 (Asia/Jakarta)",
+    );
+  });
+
+  it("visibly indicates missing timezone instead of defaulting to UTC", () => {
+    expect(formatUnixSeconds(sampleUnixSeconds, null)).toBe("Missing timezone");
+    expect(formatUnixSeconds(sampleUnixSeconds, undefined)).toBe("Missing timezone");
+    expect(formatUnixSeconds(sampleUnixSeconds, "")).toBe("Missing timezone");
+  });
+
+  it("handles null or non-finite inputs gracefully", () => {
+    expect(formatUnixSeconds(null, "Asia/Singapore")).toBe("Missing timestamp");
+    expect(formatUnixSeconds(undefined, "Asia/Singapore")).toBe("Missing timestamp");
+    expect(formatUnixSeconds(NaN, "Asia/Singapore")).toBe("Invalid date");
+  });
+});
+
+describe("Site-local due_at parsing and formatting (parseSiteDueAt and formatSiteDueAt)", () => {
+  it("explicitly parses DD/MM/YYYY HH:mm fields without browser-local Date parsing or UTC shifts", () => {
+    const parsed = parseSiteDueAt("07/10/2026 10:00");
+    expect(parsed).toEqual({
+      day: "07",
+      month: "10",
+      year: "2026",
+      hour: "10",
+      minute: "00",
+      second: undefined,
+    });
+  });
+
+  it("parses optional seconds field when present", () => {
+    const parsed = parseSiteDueAt("31/12/2026 23:59:45");
+    expect(parsed).toEqual({
+      day: "31",
+      month: "12",
+      year: "2026",
+      hour: "23",
+      minute: "59",
+      second: "45",
+    });
+  });
+
+  it("formats due_at with site timezone explicitly named", () => {
+    expect(formatSiteDueAt("07/10/2026 10:00", "Asia/Singapore")).toBe(
+      "2026-10-07 10:00 (Asia/Singapore)",
+    );
+    expect(formatSiteDueAt("07/10/2026 10:00", "Australia/Sydney")).toBe(
+      "2026-10-07 10:00 (Australia/Sydney)",
+    );
+  });
+
+  it("returns dash for null or empty due_at", () => {
+    expect(formatSiteDueAt(null, "Asia/Singapore")).toBe("—");
+    expect(formatSiteDueAt(undefined, "Asia/Singapore")).toBe("—");
+    expect(formatSiteDueAt("", "Asia/Singapore")).toBe("—");
+  });
+
+  it("returns Missing timezone when timezone is missing instead of defaulting to UTC", () => {
+    expect(formatSiteDueAt("07/10/2026 10:00", null)).toBe("Missing timezone");
+    expect(formatSiteDueAt("07/10/2026 10:00", undefined)).toBe("Missing timezone");
+    expect(formatSiteDueAt("07/10/2026 10:00", "")).toBe("Missing timezone");
+  });
+
+  it("returns Invalid date format for malformed strings", () => {
+    expect(formatSiteDueAt("2026-10-07", "Asia/Singapore")).toBe("Invalid date format");
+    expect(formatSiteDueAt("invalid date", "Asia/Singapore")).toBe("Invalid date format");
   });
 });

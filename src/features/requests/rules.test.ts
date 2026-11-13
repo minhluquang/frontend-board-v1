@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { HelpdeskRequest, Site, Staff } from "@/types";
+import type { HelpdeskRequest, RequestEvent, Site, Staff } from "@/features/requests/types";
 import {
   clampPage,
   countMissingTimezoneRequests,
   filterAndSortRequests,
+  filterTimelineEvents,
+  findFirstResponse,
   getRequestSiteLocalDate,
   isExcludedRequest,
   isRequestInDateRange,
   isRequestOverdue,
   paginateRequests,
+  resolveActorName,
   resolveAssigneeName,
+  sortEventsChronologically,
 } from "./rules";
 
 const mockSites: Site[] = [
@@ -216,6 +220,20 @@ describe("Rule 3: Staff name lookup", () => {
     const unknownAssignee = { id: 999, name: "Should Not Be Used" };
     expect(resolveAssigneeName(unknownAssignee, staffMap)).toBe("Staff #999");
   });
+
+  it("resolves actor name strictly from staff map and never exposes stale actor_name", () => {
+    expect(resolveActorName(338, staffMap)).toBe("Benjamin Tan");
+    expect(resolveActorName(344, staffMap)).toBe("Darren Goh");
+  });
+
+  it("returns System when actor_id is null or undefined", () => {
+    expect(resolveActorName(null, staffMap)).toBe("System");
+    expect(resolveActorName(undefined, staffMap)).toBe("System");
+  });
+
+  it("falls back to Staff #<id> when actor_id is unknown in staff registry", () => {
+    expect(resolveActorName(999, staffMap)).toBe("Staff #999");
+  });
 });
 
 describe("filterAndSortRequests", () => {
@@ -417,5 +435,159 @@ describe("countMissingTimezoneRequests", () => {
     expect(
       countMissingTimezoneRequests(requests, sitesMapWithMissingTz, { siteId: 11 }),
     ).toBe(0);
+  });
+});
+
+function createMockEvent(overrides: Partial<RequestEvent> = {}): RequestEvent {
+  return {
+    id: 1,
+    status: "processing",
+    at: 1791874530,
+    actor_id: 338,
+    actor_name: "Stale Actor",
+    assignee_name: null,
+    due_at: null,
+    note: null,
+    reverts_id: null,
+    ...overrides,
+  };
+}
+
+describe("Rule 5: filterTimelineEvents (undo/target hiding)", () => {
+  it("hides both the undoing event and the undone event it references by default", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 101, note: "Original note" }),
+      createMockEvent({ id: 102, note: "Unrelated event" }),
+      createMockEvent({ id: 103, reverts_id: 101, note: "Undoes event 101" }),
+      createMockEvent({ id: 104, note: "Subsequent event" }),
+    ];
+
+    const visible = filterTimelineEvents(events, false);
+
+    // Events 101 (undone) and 103 (undoing) are hidden
+    expect(visible.map((e) => e.id)).toEqual([102, 104]);
+  });
+
+  it("handles multiple separate revert events", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 1, note: "Event 1" }),
+      createMockEvent({ id: 2, note: "Event 2" }),
+      createMockEvent({ id: 3, note: "Event 3" }),
+      createMockEvent({ id: 4, reverts_id: 1, note: "Reverts 1" }),
+      createMockEvent({ id: 5, reverts_id: 3, note: "Reverts 3" }),
+    ];
+
+    const visible = filterTimelineEvents(events, false);
+    expect(visible.map((e) => e.id)).toEqual([2]);
+  });
+
+  it("includes all events when includeReverted is true", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 101, note: "Original note" }),
+      createMockEvent({ id: 102, reverts_id: 101, note: "Undoes 101" }),
+    ];
+
+    const visible = filterTimelineEvents(events, true);
+    expect(visible.map((e) => e.id)).toEqual([101, 102]);
+  });
+
+  it("returns all events unchanged when there are no reverts_id", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 1 }),
+      createMockEvent({ id: 2 }),
+      createMockEvent({ id: 3 }),
+    ];
+
+    expect(filterTimelineEvents(events, false).map((e) => e.id)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("sortEventsChronologically", () => {
+  it("sorts events in chronological order (oldest to newest)", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 3, at: 300 }),
+      createMockEvent({ id: 1, at: 100 }),
+      createMockEvent({ id: 2, at: 200 }),
+    ];
+
+    const sorted = sortEventsChronologically(events);
+    expect(sorted.map((e) => e.id)).toEqual([1, 2, 3]);
+  });
+
+  it("breaks ties deterministically by event id ascending", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 99, at: 200 }),
+      createMockEvent({ id: 42, at: 200 }),
+      createMockEvent({ id: 10, at: 100 }),
+    ];
+
+    const sorted = sortEventsChronologically(events);
+    expect(sorted.map((e) => e.id)).toEqual([10, 42, 99]);
+  });
+});
+
+describe("Rule 6: findFirstResponse", () => {
+  it("finds the earliest event with status processing and non-null actor_id", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 1, status: "pending", at: 100, actor_id: 338 }),
+      createMockEvent({ id: 2, status: "processing", at: 200, actor_id: 338 }),
+      createMockEvent({ id: 3, status: "processing", at: 300, actor_id: 344 }),
+    ];
+
+    const first = findFirstResponse(events);
+    expect(first).not.toBeNull();
+    expect(first?.id).toBe(2);
+    expect(first?.actor_id).toBe(338);
+    expect(first?.at).toBe(200);
+  });
+
+  it("ignores automatic system events where actor_id is null", () => {
+    const events: RequestEvent[] = [
+      // Earliest processing event, but actor_id is null (System) -> must be skipped
+      createMockEvent({ id: 1, status: "processing", at: 100, actor_id: null, actor_name: "System" }),
+      // First processing event with actual human actor_id
+      createMockEvent({ id: 2, status: "processing", at: 200, actor_id: 344 }),
+    ];
+
+    const first = findFirstResponse(events);
+    expect(first).not.toBeNull();
+    expect(first?.id).toBe(2);
+    expect(first?.actor_id).toBe(344);
+  });
+
+  it("returns null if no events qualify (e.g. only pending or only system events)", () => {
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 1, status: "pending", at: 100, actor_id: 338 }),
+      createMockEvent({ id: 2, status: "complete", at: 200, actor_id: 338 }),
+      createMockEvent({ id: 3, status: "processing", at: 300, actor_id: null }),
+    ];
+
+    expect(findFirstResponse(events)).toBeNull();
+    expect(findFirstResponse([])).toBeNull();
+  });
+
+  it("selects the first qualifying response EVEN IF that event is subsequently reverted (Rule 5 vs Rule 6 literal interpretation)", () => {
+    // Scenario:
+    // Event 1 (at 100): processing by Staff 338. This is the first response.
+    // Event 2 (at 150): reverts event 1 (undoing event).
+    // Event 3 (at 200): processing by Staff 344.
+    // Under Rule 5, events 1 and 2 are hidden from the visible timeline.
+    // Under Rule 6 literal interpretation, Event 1 remains the first response in the complete fetched history!
+    const events: RequestEvent[] = [
+      createMockEvent({ id: 1, status: "processing", at: 100, actor_id: 338 }),
+      createMockEvent({ id: 2, status: "pending", at: 150, actor_id: 338, reverts_id: 1 }),
+      createMockEvent({ id: 3, status: "processing", at: 200, actor_id: 344 }),
+    ];
+
+    // Rule 5 timeline test: events 1 and 2 are hidden
+    const timeline = filterTimelineEvents(events, false);
+    expect(timeline.map((e) => e.id)).toEqual([3]);
+
+    // Rule 6 first response test: evaluates complete history, selects Event 1
+    const firstResponse = findFirstResponse(events);
+    expect(firstResponse).not.toBeNull();
+    expect(firstResponse?.id).toBe(1);
+    expect(firstResponse?.actor_id).toBe(338);
+    expect(firstResponse?.at).toBe(100);
   });
 });

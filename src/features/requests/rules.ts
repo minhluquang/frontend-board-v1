@@ -1,4 +1,4 @@
-import type { HelpdeskRequest, Site, Staff, Status } from "@/types";
+import type { HelpdeskRequest, RequestEvent, Site, Staff, Status } from "@/features/requests/types";
 import { localDate } from "./dates";
 
 export type SortField = "created" | "due";
@@ -142,7 +142,7 @@ export function countMissingTimezoneRequests(
 
 /**
  * Rule 3: Look people up by id in /v1/staff.
- * NEVER display assignee.name from request data as it can be stale.
+ * NEVER display assignee.name or actor_name from request or event data as they can be stale.
  */
 export function resolveAssigneeName(
   assignee: { id: number; name?: string } | null,
@@ -154,6 +154,87 @@ export function resolveAssigneeName(
     return staff.name;
   }
   return `Staff #${assignee.id}`;
+}
+
+/**
+ * Rule 3: Look up event actor in /v1/staff by actor_id.
+ * Automatic/system events have actor_id: null -> display "System".
+ * NEVER display actor_name or assignee_name from event payload.
+ */
+export function resolveActorName(
+  actorId: number | null | undefined,
+  staffMap: Map<number, Staff> | Record<number, Staff>,
+): string {
+  if (actorId === null || actorId === undefined) {
+    return "System";
+  }
+  const staff = staffMap instanceof Map ? staffMap.get(actorId) : staffMap[actorId];
+  if (staff && staff.name) {
+    return staff.name;
+  }
+  return `Staff #${actorId}`;
+}
+
+/**
+ * Rule 5: Undone events.
+ * An event with reverts_id undoes the event it references.
+ * By default, hide both the undoing event and the event it undoes.
+ */
+export function filterTimelineEvents(
+  events: RequestEvent[],
+  includeReverted = false,
+): RequestEvent[] {
+  if (includeReverted) {
+    return [...events];
+  }
+
+  const hiddenIds = new Set<number>();
+  for (const event of events) {
+    if (event.reverts_id !== null && event.reverts_id !== undefined) {
+      hiddenIds.add(event.id);
+      hiddenIds.add(event.reverts_id);
+    }
+  }
+
+  return events.filter((event) => !hiddenIds.has(event.id));
+}
+
+/**
+ * Sorts events in chronological order (earliest first).
+ * Primary sort: at ascending.
+ * Secondary sort: id ascending.
+ */
+export function sortEventsChronologically(events: RequestEvent[]): RequestEvent[] {
+  return [...events].sort((a, b) => {
+    const diff = a.at - b.at;
+    if (diff !== 0) return diff;
+    return a.id - b.id;
+  });
+}
+
+/**
+ * Rule 6: First response.
+ * Follow docs/rules.md literally: find the earliest event in the complete fetched history
+ * whose status is processing and whose actor_id is not null (System events have actor_id: null).
+ *
+ * Keep Rule 5 (timeline hiding) and Rule 6 (first response) calculations separate:
+ * Even if the earliest qualifying processing event was subsequently reverted, under Rule 6
+ * it still counts as the first response.
+ */
+export function findFirstResponse(events: RequestEvent[]): RequestEvent | null {
+  const qualifying = events.filter(
+    (e) => e.status === "processing" && e.actor_id !== null && e.actor_id !== undefined,
+  );
+
+  if (qualifying.length === 0) {
+    return null;
+  }
+
+  return qualifying.reduce((earliest, current) => {
+    if (current.at < earliest.at) return current;
+    if (current.at === earliest.at && current.id < earliest.id) return current;
+    return earliest;
+  });
 }
 
 /**

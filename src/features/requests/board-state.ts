@@ -1,4 +1,4 @@
-import type { Status } from "@/types";
+import type { Status } from "@/features/requests/types";
 import { daysAgo, isValidIsoDate } from "./dates";
 import type { SortDirection, SortField } from "./rules";
 
@@ -10,6 +10,7 @@ export interface BoardState {
   sortField: SortField;
   sortDirection: SortDirection;
   page: number;
+  requestId?: number | null;
 }
 
 export function parseUrlState(): BoardState {
@@ -22,6 +23,7 @@ export function parseUrlState(): BoardState {
       sortField: "created",
       sortDirection: "desc",
       page: 1,
+      requestId: null,
     };
   }
 
@@ -33,6 +35,7 @@ export function parseUrlState(): BoardState {
   const sortParam = params.get("sort");
   const dirParam = params.get("direction");
   const pageParam = params.get("page");
+  const requestParam = params.get("requestId") || params.get("request");
 
   const from = fromParam && isValidIsoDate(fromParam) ? fromParam : daysAgo(30);
   const to = toParam && isValidIsoDate(toParam) ? toParam : daysAgo(0);
@@ -44,11 +47,12 @@ export function parseUrlState(): BoardState {
   const sortField: SortField = sortParam === "due" ? "due" : "created";
   const sortDirection: SortDirection = dirParam === "asc" ? "asc" : "desc";
   const page = pageParam && /^[1-9]\d*$/.test(pageParam) ? Number(pageParam) : 1;
+  const requestId = requestParam && /^\d+$/.test(requestParam) ? Number(requestParam) : null;
 
-  return { from, to, siteId, status, sortField, sortDirection, page };
+  return { from, to, siteId, status, sortField, sortDirection, page, requestId };
 }
 
-export function syncUrlState(state: BoardState): void {
+export function syncUrlState(state: BoardState, push = false): void {
   if (typeof window === "undefined") return;
 
   const url = new URL(window.location.href);
@@ -72,8 +76,22 @@ export function syncUrlState(state: BoardState): void {
   url.searchParams.set("direction", state.sortDirection);
   url.searchParams.set("page", String(state.page));
 
+  if (state.requestId !== null && state.requestId !== undefined) {
+    url.searchParams.set("requestId", String(state.requestId));
+  } else {
+    url.searchParams.delete("requestId");
+    url.searchParams.delete("request");
+  }
+
   const newSearch = url.search;
-  if (window.location.search !== newSearch) {
-    window.history.replaceState(null, "", url.pathname + newSearch);
+  const newHref = url.pathname + newSearch;
+  const currentHref = window.location.pathname + window.location.search;
+
+  if (currentHref !== newHref) {
+    if (push) {
+      window.history.pushState(null, "", newHref);
+    } else {
+      window.history.replaceState(null, "", newHref);
+    }
   }
 }

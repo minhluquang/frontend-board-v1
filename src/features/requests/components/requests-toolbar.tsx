@@ -1,4 +1,4 @@
-import type { Site, Status } from "@/types";
+import type { Site, Status } from "@/features/requests/types";
 import type { BoardState } from "../board-state";
 import type { SortDirection, SortField } from "../rules";
 
