@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/api";
 import type { Site, Staff } from "@/features/requests/types";
-import { parseUrlState, syncUrlState, type BoardState } from "../board-state";
+import { createDefaultBoardState, parseUrlState, syncUrlState, type BoardState } from "../board-state";
 import { isValidIsoDate } from "../dates";
 import { useRequestsQuery, useSitesQuery, useStaffQuery } from "../hooks/queries";
 import {
   clampPage,
   countMissingTimezoneRequests,
   filterAndSortRequests,
-  PAGE_SIZE,
   paginateRequests,
   type SortField,
 } from "../rules";
 import { RequestsPagination } from "./requests-pagination";
+import { RequestsStatusTabs } from "./requests-status-tabs";
 import { RequestsTable } from "./requests-table";
 import { RequestsToolbar } from "./requests-toolbar";
 import { RequestDetail } from "./request-detail";
 
 export function RequestsBoard() {
   const [state, setState] = useState<BoardState>(parseUrlState);
+  const [pageSize, setPageSize] = useState(10);
 
   // Sync state to URL and listen to popstate for browser navigation
   useEffect(() => {
@@ -67,14 +68,14 @@ export function RequestsBoard() {
 
   const sitesList: Site[] = sitesQuery.data?.data ?? [];
 
-  // Filter and sort requests according to Rule 1 and Board options
-  const filteredRequests = useMemo(() => {
+  // Filter requests by date/site first so the status tabs show matching counts.
+  const matchingRequests = useMemo(() => {
     if (!requestsQuery.data) return [];
     return filterAndSortRequests(requestsQuery.data, sitesMap, {
       fromDate: state.from,
       toDate: state.to,
       siteId: state.siteId,
-      status: state.status,
+      status: "all",
       sortField: state.sortField,
       sortDirection: state.sortDirection,
     });
@@ -84,14 +85,27 @@ export function RequestsBoard() {
     state.from,
     state.to,
     state.siteId,
-    state.status,
     state.sortField,
     state.sortDirection,
   ]);
 
+  const statusCounts = useMemo(() => ({
+    all: matchingRequests.length,
+    pending: matchingRequests.filter((request) => request.status === "pending").length,
+    processing: matchingRequests.filter((request) => request.status === "processing").length,
+    complete: matchingRequests.filter((request) => request.status === "complete").length,
+  }), [matchingRequests]);
+
+  const filteredRequests = useMemo(
+    () => state.status === "all"
+      ? matchingRequests
+      : matchingRequests.filter((request) => request.status === state.status),
+    [matchingRequests, state.status],
+  );
+
   // Pagination calculation and clamping
   const totalRows = filteredRequests.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
 
   const missingTimezoneCount = useMemo(() => {
     if (!sitesQuery.isSuccess || !requestsQuery.data) return 0;
@@ -108,12 +122,12 @@ export function RequestsBoard() {
     } else if (state.page < 1) {
       setState((prev) => ({ ...prev, page: 1 }));
     }
-  }, [requestsQuery.isLoading, state.page, totalPages]);
+  }, [requestsQuery.isLoading, state.page, totalPages, pageSize]);
 
-  const currentPage = clampPage(state.page, totalRows, PAGE_SIZE);
-  const paginatedRequests = paginateRequests(filteredRequests, currentPage, PAGE_SIZE);
-  const startRow = totalRows === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const endRow = Math.min(currentPage * PAGE_SIZE, totalRows);
+  const currentPage = clampPage(state.page, totalRows, pageSize);
+  const paginatedRequests = paginateRequests(filteredRequests, currentPage, pageSize);
+  const startRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endRow = Math.min(currentPage * pageSize, totalRows);
 
   const isLoading = requestsQuery.isLoading || sitesQuery.isLoading || staffQuery.isLoading;
   const isRetrying = requestsQuery.isFetching && requestsQuery.failureCount > 0;
@@ -145,6 +159,11 @@ export function RequestsBoard() {
     });
   };
 
+  const resetBoard = () => {
+    setState(createDefaultBoardState());
+    setPageSize(10);
+  };
+
   const handleSelectRequest = (id: number) => {
     const nextState: BoardState = { ...state, requestId: id };
     syncUrlState(nextState, true);
@@ -172,17 +191,27 @@ export function RequestsBoard() {
 
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+      <div className="mb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Requests board
         </h1>
       </div>
+
+      <RequestsStatusTabs
+        value={state.status === "canceled" ? "all" : state.status}
+        counts={statusCounts}
+        loading={isLoading}
+        onChange={(status) =>
+          setState((prev) => ({ ...prev, status, page: 1 }))
+        }
+      />
 
       {/* Filter and sorting toolbar */}
       <RequestsToolbar
         state={state}
         sitesList={sitesList}
         onChange={setState}
+        onReset={resetBoard}
       />
 
       {/* Date range validation hint */}
@@ -218,7 +247,7 @@ export function RequestsBoard() {
       )}
 
       {/* Summary status text */}
-      <p className="muted text-sm text-muted-foreground my-2" role="status" aria-live="polite">
+      <p className="muted my-3 text-sm text-muted-foreground" role="status" aria-live="polite">
         {state.from} to {state.to}.{" "}
         {isLoading
           ? "Loading…"
@@ -280,7 +309,12 @@ export function RequestsBoard() {
             totalRows={totalRows}
             currentPage={currentPage}
             totalPages={totalPages}
+            pageSize={pageSize}
             onPageChange={(page) => setState((prev) => ({ ...prev, page }))}
+            onPageSizeChange={(newPageSize) => {
+              setPageSize(newPageSize);
+              setState((prev) => ({ ...prev, page: 1 }));
+            }}
           />
         </>
       )}

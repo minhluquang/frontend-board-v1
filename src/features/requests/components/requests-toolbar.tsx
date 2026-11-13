@@ -1,4 +1,5 @@
-import type { Site, Status } from "@/features/requests/types";
+import { RotateCcw } from "lucide-react";
+import type { Site } from "@/features/requests/types";
 import type { BoardState } from "../board-state";
 import type { SortDirection, SortField } from "../rules";
 
@@ -6,27 +7,28 @@ interface RequestsToolbarProps {
   state: BoardState;
   sitesList: Site[];
   onChange: (updater: (prev: BoardState) => BoardState) => void;
+  onReset: () => void;
 }
 
-export function RequestsToolbar({ state, sitesList, onChange }: RequestsToolbarProps) {
+const controlClassName =
+  "h-10 w-full cursor-pointer rounded-lg border border-input bg-card px-3 text-sm text-foreground shadow-xs transition-colors hover:border-foreground/25 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15";
+
+const labelClassName = "text-xs font-medium text-muted-foreground";
+
+export function RequestsToolbar({ state, sitesList, onChange, onReset }: RequestsToolbarProps) {
   return (
     <form
-      className="toolbar flex flex-wrap gap-4 items-end p-4 mb-4 bg-card rounded-lg border border-border shadow-xs"
+      className="toolbar mb-4 grid grid-cols-1 gap-3 border-b border-border pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
       role="search"
       aria-label="Filter and sort requests"
       onSubmit={(e) => e.preventDefault()}
     >
-      <div className="filter-group flex flex-col gap-1.5 flex-1 min-w-[130px]">
-        <label
-          htmlFor="filter-from"
-          className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-        >
-          From
-        </label>
+      <div className="filter-group flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="filter-from" className={labelClassName}>From</label>
         <input
           id="filter-from"
           type="date"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={controlClassName}
           value={state.from}
           aria-label="From date"
           onChange={(e) =>
@@ -35,17 +37,12 @@ export function RequestsToolbar({ state, sitesList, onChange }: RequestsToolbarP
         />
       </div>
 
-      <div className="filter-group flex flex-col gap-1.5 flex-1 min-w-[130px]">
-        <label
-          htmlFor="filter-to"
-          className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-        >
-          To
-        </label>
+      <div className="filter-group flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="filter-to" className={labelClassName}>To</label>
         <input
           id="filter-to"
           type="date"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={controlClassName}
           value={state.to}
           aria-label="To date"
           onChange={(e) =>
@@ -54,16 +51,11 @@ export function RequestsToolbar({ state, sitesList, onChange }: RequestsToolbarP
         />
       </div>
 
-      <div className="filter-group flex flex-col gap-1.5 flex-1 min-w-[150px]">
-        <label
-          htmlFor="filter-site"
-          className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-        >
-          Site
-        </label>
+      <div className="filter-group flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="filter-site" className={labelClassName}>Site</label>
         <select
           id="filter-site"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={controlClassName}
           value={state.siteId ?? ""}
           aria-label="Filter by site"
           onChange={(e) =>
@@ -75,51 +67,17 @@ export function RequestsToolbar({ state, sitesList, onChange }: RequestsToolbarP
           }
         >
           <option value="">All sites</option>
-          {sitesList.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
+          {sitesList.map((site) => (
+            <option key={site.id} value={site.id}>{site.name}</option>
           ))}
         </select>
       </div>
 
-      <div className="filter-group flex flex-col gap-1.5 flex-1 min-w-[140px]">
-        <label
-          htmlFor="filter-status"
-          className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-        >
-          Status
-        </label>
-        <select
-          id="filter-status"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          value={state.status}
-          aria-label="Filter by status"
-          onChange={(e) =>
-            onChange((prev) => ({
-              ...prev,
-              status: e.target.value as Status | "all",
-              page: 1,
-            }))
-          }
-        >
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="processing">Processing</option>
-          <option value="complete">Complete</option>
-        </select>
-      </div>
-
-      <div className="filter-group flex flex-col gap-1.5 flex-1 min-w-[140px]">
-        <label
-          htmlFor="sort-field"
-          className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-        >
-          Sort by
-        </label>
+      <div className="filter-group flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="sort-field" className={labelClassName}>Sort by</label>
         <select
           id="sort-field"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={controlClassName}
           value={state.sortField}
           aria-label="Sort by field"
           onChange={(e) =>
@@ -135,16 +93,11 @@ export function RequestsToolbar({ state, sitesList, onChange }: RequestsToolbarP
         </select>
       </div>
 
-      <div className="filter-group flex flex-col gap-1.5 flex-1 min-w-[160px]">
-        <label
-          htmlFor="sort-direction"
-          className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-        >
-          Direction
-        </label>
+      <div className="filter-group flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="sort-direction" className={labelClassName}>Order</label>
         <select
           id="sort-direction"
-          className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={controlClassName}
           value={state.sortDirection}
           aria-label="Sort direction"
           onChange={(e) =>
@@ -155,9 +108,20 @@ export function RequestsToolbar({ state, sitesList, onChange }: RequestsToolbarP
             }))
           }
         >
-          <option value="desc">Newest first (Descending)</option>
-          <option value="asc">Oldest first (Ascending)</option>
+          <option value="desc">Newest first</option>
+          <option value="asc">Oldest first</option>
         </select>
+      </div>
+
+      <div className="filter-group flex items-end">
+        <button
+          type="button"
+          className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          onClick={onReset}
+        >
+          <RotateCcw className="size-4" aria-hidden="true" />
+          Reset
+        </button>
       </div>
     </form>
   );

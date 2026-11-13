@@ -1,4 +1,6 @@
 import { Inbox } from "lucide-react";
+import fullLogo from "@/assets/brand/robust-tech-house.png";
+import houseMark from "@/assets/brand/robust-tech-house-mark.png";
 import {
   Sidebar,
   SidebarContent,
@@ -16,14 +18,17 @@ export function ManagerSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-2 font-semibold text-sidebar-foreground">
-          <div className="flex size-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground text-xs font-bold">
-            HD
-          </div>
-          <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="truncate font-semibold">Helpdesk Portal</span>
-            <span className="truncate text-xs text-muted-foreground">Manager Workspace</span>
-          </div>
+        <div className="flex min-h-8 items-center justify-center">
+          <img
+            src={fullLogo}
+            alt="Robust Tech House"
+            className="h-auto w-36 group-data-[collapsible=icon]:hidden"
+          />
+          <img
+            src={houseMark}
+            alt="Robust Tech House"
+            className="hidden size-8 object-contain group-data-[collapsible=icon]:block"
+          />
         </div>
       </SidebarHeader>
 

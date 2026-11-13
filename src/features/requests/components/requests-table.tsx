@@ -39,36 +39,36 @@ export function RequestsTable({
 }: RequestsTableProps) {
   return (
     <div
-      className="table-container rounded-lg border border-border bg-card overflow-x-auto shadow-xs"
+      className="table-container overflow-x-auto rounded-xl border border-border bg-card shadow-xs"
       tabIndex={0}
       role="region"
       aria-label="Requests table"
     >
-      <Table className="w-full text-sm">
+      <Table className="w-full min-w-[980px] text-sm">
         <caption className="sr-only">Helpdesk Requests</caption>
-        <TableHeader className="bg-muted/40">
+        <TableHeader className="bg-muted/60">
           <TableRow className="hover:bg-transparent">
-            <TableHead scope="col" className="font-semibold text-foreground">
+            <TableHead scope="col" className="h-11 px-4 text-xs font-semibold text-muted-foreground">
               Site
             </TableHead>
-            <TableHead scope="col" className="font-semibold text-foreground">
+            <TableHead scope="col" className="h-11 px-4 text-xs font-semibold text-muted-foreground">
               Ref
             </TableHead>
-            <TableHead scope="col" className="font-semibold text-foreground min-w-[200px]">
+            <TableHead scope="col" className="h-11 min-w-[200px] px-4 text-xs font-semibold text-muted-foreground">
               Title
             </TableHead>
-            <TableHead scope="col" className="font-semibold text-foreground">
+            <TableHead scope="col" className="h-11 px-4 text-xs font-semibold text-muted-foreground">
               Priority
             </TableHead>
-            <TableHead scope="col" className="font-semibold text-foreground">
+            <TableHead scope="col" className="h-11 px-4 text-xs font-semibold text-muted-foreground">
               Status
             </TableHead>
-            <TableHead scope="col" className="font-semibold text-foreground">
+            <TableHead scope="col" className="h-11 px-4 text-xs font-semibold text-muted-foreground">
               Assignee
             </TableHead>
             <TableHead
               scope="col"
-              className="font-semibold text-foreground"
+              className="h-11 px-4 text-xs font-semibold text-muted-foreground"
               aria-sort={
                 sortField === "due"
                   ? sortDirection === "asc"
@@ -88,12 +88,12 @@ export function RequestsTable({
                 Due {sortField === "due" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
               </button>
             </TableHead>
-            <TableHead scope="col" className="font-semibold text-foreground">
+            <TableHead scope="col" className="h-11 px-4 text-xs font-semibold text-muted-foreground">
               Overdue
             </TableHead>
             <TableHead
               scope="col"
-              className="font-semibold text-foreground"
+              className="h-11 px-4 text-xs font-semibold text-muted-foreground"
               aria-sort={
                 sortField === "created"
                   ? sortDirection === "asc"
@@ -130,8 +130,8 @@ export function RequestsTable({
                 key={r.id}
                 className={
                   overdue === true
-                    ? "row-overdue bg-destructive/5 hover:bg-destructive/10"
-                    : undefined
+                    ? "row-overdue h-12 bg-destructive/5 hover:bg-destructive/10"
+                    : "h-12 transition-colors"
                 }
               >
                 <TableCell className="font-medium">{siteName}</TableCell>

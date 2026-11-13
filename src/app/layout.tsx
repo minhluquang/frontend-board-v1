@@ -8,7 +8,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <ManagerSidebar />
       <SidebarInset className="min-h-screen flex flex-col bg-background">
         <ManagerHeader />
-        <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
+        <main className="min-w-0 flex-1 p-4 md:p-6">
           {children}
         </main>
       </SidebarInset>

@@ -13,19 +13,21 @@ export interface BoardState {
   requestId?: number | null;
 }
 
+export function createDefaultBoardState(): BoardState {
+  return {
+    from: daysAgo(30),
+    to: daysAgo(0),
+    siteId: null,
+    status: "all",
+    sortField: "created",
+    sortDirection: "desc",
+    page: 1,
+    requestId: null,
+  };
+}
+
 export function parseUrlState(): BoardState {
-  if (typeof window === "undefined") {
-    return {
-      from: daysAgo(30),
-      to: daysAgo(0),
-      siteId: null,
-      status: "all",
-      sortField: "created",
-      sortDirection: "desc",
-      page: 1,
-      requestId: null,
-    };
-  }
+  if (typeof window === "undefined") return createDefaultBoardState();
 
   const params = new URLSearchParams(window.location.search);
   const fromParam = params.get("from");
