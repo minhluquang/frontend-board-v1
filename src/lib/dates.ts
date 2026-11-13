@@ -20,3 +20,51 @@ export function daysAgo(days: number, today = new Date()): string {
   const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - days));
   return date.toISOString().slice(0, 10);
 }
+
+/** Check if a string is a valid YYYY-MM-DD calendar date. */
+export function isValidIsoDate(isoDate: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return false;
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  return !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === isoDate;
+}
+
+/**
+ * Format a UTC instant in the site's IANA timezone and visibly append the timezone name.
+ * Returns "Missing timezone" if timezone is omitted or blank, avoiding inaccurate UTC fallback.
+ * Example: "2026-10-06 10:15:07 (Asia/Singapore)"
+ */
+export function formatSiteDateTime(instant: Date | string, timeZone?: string | null): string {
+  if (!timeZone || !timeZone.trim()) {
+    return "Missing timezone";
+  }
+
+  const date = typeof instant === "string" ? new Date(instant) : instant;
+  if (isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    const yyyy = get("year");
+    const mm = get("month");
+    const dd = get("day");
+    const hh = get("hour");
+    const min = get("minute");
+    const ss = get("second");
+
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss} (${timeZone})`;
+  } catch {
+    return `Invalid timezone (${timeZone})`;
+  }
+}
