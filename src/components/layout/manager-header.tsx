@@ -1,6 +1,6 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+import { LiveSyncStatus } from "@/features/requests";
 
 export function ManagerHeader() {
   return (
@@ -20,13 +20,7 @@ export function ManagerHeader() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge
-          variant="outline"
-          className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-normal"
-        >
-          <span className="mr-1.5 size-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-          API Connected
-        </Badge>
+        <LiveSyncStatus />
       </div>
     </header>
   );

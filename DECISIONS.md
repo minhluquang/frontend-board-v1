@@ -57,4 +57,17 @@ Write in English. Short bullet points are fine. Reviewers read this file alongsi
 
 - **Large Date Ranges**: In Level 1, fetching all pages across a 30-day window is lightweight. For multi-year date ranges with tens of thousands of requests, we would implement virtualized rendering (`@tanstack/react-virtual`) or server-side pagination with infinite scrolling.
 - **Column Visibility**: Allow users to toggle column visibility or reorder table columns.
-- **Level 3**: Add change-feed polling with cursor expiration recovery and a visible last-updated time.
+
+## Level 3 Live Updates
+
+- **Polling Architecture & Interval**: Polling is integrated using TanStack Query via `useLiveUpdates` hook with `refetchInterval: 30_000` ms (~30 seconds), detecting upstream changes within the required one-minute business threshold without manual page reloading.
+- **Change Feed Pagination & Cursor Persistence**: `executeChangesSyncCycle` uses `limit: 500` (documented maximum) and traverses all available pages (`has_more: true`) until completely caught up (`has_more: false`). The new cursor is committed to storage only after all pages are fetched and cache invalidations are applied. If an API call fails mid-cycle, the transaction aborts and preserves the previous stable cursor and sync timestamp.
+- **HTTP 410 Expiration Recovery**: When receiving HTTP 410 (cursor expired after 15 minutes), the expired cursor is cleared from storage, and synchronization restarts immediately from the beginning without a cursor. Previously processed changes are skipped using their sequence number (`seq`).
+- **Sequence Deduplication & Feed Idempotence**: Change items may be duplicated by the feed or re-delivered upon 410 recovery. Changes are tracked by `seq` in memory and synchronized to `sessionStorage` (capped at the 5,000 most recent items in both). Any previously processed `seq` is skipped before cache invalidations are triggered.
+- **Safe Storage Resilience**: `ChangesSyncStorage` manages `sessionStorage` in the browser tab session. If `sessionStorage` is unavailable (e.g. node test environments, private browsing restrictions, or `QuotaExceededError`), it transparently falls back to an in-memory store without breaking execution.
+- **Cache Invalidation for Documented Changes**:
+  - `request.created` & `request.updated`: Invalidates `["requests"]` (board list) and `["request", req.id]` (detail view).
+  - `event.created`: Invalidates `["requests"]` (the event may change status or assignment), `["request-events", req_id]` (timeline), and `["request", req_id]` (detail summary).
+  - `staff.updated`: Invalidates `["staff"]` to ensure real-time name resolution via registry.
+  - Unknown/unconfirmed change types: Does not crash or interrupt polling; safely invalidates the requests, details, event histories, sites, and staff caches.
+- **Accessible Sync Status Indicator**: `LiveSyncStatus` is rendered persistently in `ManagerHeader`. It displays syncing spinners (`role="status"`, `aria-live="polite"`), the last successful sync time formatted in `HH:mm:ss`, and error badges. During active errors, it never falsely reports "Live" or successful updates, while preserving the previous successful sync timestamp.

@@ -1,5 +1,12 @@
 import { get } from "@/api";
-import type { HelpdeskRequest, Page, RequestEvent, Site, Staff } from "../types";
+import type {
+  ChangesResponse,
+  HelpdeskRequest,
+  Page,
+  RequestEvent,
+  Site,
+  Staff,
+} from "../types";
 
 export const listRequests = (params: {
   page?: number;
@@ -66,3 +73,13 @@ export async function fetchAllRequestEvents(id: number): Promise<RequestEvent[]>
 export const listSites = () => get<{ data: Site[] }>("/v1/sites");
 
 export const listStaff = () => get<{ data: Staff[] }>("/v1/staff");
+
+/**
+ * Fetch a page from the change feed.
+ * Max limit documented is 500. Omitting cursor starts from the beginning.
+ */
+export const getChanges = (params: { cursor?: string; limit?: number } = {}) =>
+  get<ChangesResponse>("/v1/changes", {
+    cursor: params.cursor,
+    limit: params.limit ?? 500,
+  });

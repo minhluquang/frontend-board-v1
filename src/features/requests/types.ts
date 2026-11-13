@@ -51,3 +51,54 @@ export interface Page<T> {
   total?: number;
   has_more?: boolean;
 }
+
+export type KnownChangeType =
+  | "request.created"
+  | "request.updated"
+  | "event.created"
+  | "staff.updated";
+
+export interface BaseChange {
+  seq: number;
+  type: string;
+  at: string;
+}
+
+export interface RequestCreatedChange extends BaseChange {
+  type: "request.created";
+  request: HelpdeskRequest;
+}
+
+export interface RequestUpdatedChange extends BaseChange {
+  type: "request.updated";
+  request: HelpdeskRequest;
+}
+
+export interface EventCreatedChange extends BaseChange {
+  type: "event.created";
+  request_id: number;
+  event: RequestEvent;
+}
+
+export interface StaffUpdatedChange extends BaseChange {
+  type: "staff.updated";
+  staff: Staff;
+}
+
+export interface UnknownChange extends BaseChange {
+  type: string;
+  [key: string]: unknown;
+}
+
+export type ChangeItem =
+  | RequestCreatedChange
+  | RequestUpdatedChange
+  | EventCreatedChange
+  | StaffUpdatedChange
+  | UnknownChange;
+
+export interface ChangesResponse {
+  data: ChangeItem[];
+  next_cursor: string;
+  has_more: boolean;
+}

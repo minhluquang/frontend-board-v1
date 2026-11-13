@@ -7,3 +7,7 @@ export { parseUrlState, syncUrlState, type BoardState } from "./board-state";
 export * from "./rules";
 export * from "./dates";
 export * from "./hooks/queries";
+export * from "./hooks/use-live-updates";
+export * from "./components/live-sync-status";
+export * from "./api/changes-sync";
+export * from "./api/sync-storage";
