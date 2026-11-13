@@ -1,5 +1,13 @@
 import { RotateCcw } from "lucide-react";
 import type { Site } from "@/features/requests/types";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { BoardState } from "../board-state";
 import type { SortDirection, SortField } from "../rules";
 
@@ -21,96 +29,94 @@ export function RequestsToolbar({ state, sitesList, onChange, onReset }: Request
       className="toolbar mb-4 grid grid-cols-1 gap-3 border-b border-border pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
       role="search"
       aria-label="Filter and sort requests"
-      onSubmit={(e) => e.preventDefault()}
+      onSubmit={(event) => event.preventDefault()}
     >
       <div className="filter-group flex min-w-0 flex-col gap-1.5">
         <label htmlFor="filter-from" className={labelClassName}>From</label>
-        <input
+        <DatePicker
           id="filter-from"
-          type="date"
-          className={controlClassName}
+          ariaLabel="From date"
           value={state.from}
-          aria-label="From date"
-          onChange={(e) =>
-            onChange((prev) => ({ ...prev, from: e.target.value, page: 1 }))
-          }
+          onChange={(from) => onChange((prev) => ({ ...prev, from, page: 1 }))}
         />
       </div>
 
       <div className="filter-group flex min-w-0 flex-col gap-1.5">
         <label htmlFor="filter-to" className={labelClassName}>To</label>
-        <input
+        <DatePicker
           id="filter-to"
-          type="date"
-          className={controlClassName}
+          ariaLabel="To date"
           value={state.to}
-          aria-label="To date"
-          onChange={(e) =>
-            onChange((prev) => ({ ...prev, to: e.target.value, page: 1 }))
-          }
+          onChange={(to) => onChange((prev) => ({ ...prev, to, page: 1 }))}
         />
       </div>
 
       <div className="filter-group flex min-w-0 flex-col gap-1.5">
         <label htmlFor="filter-site" className={labelClassName}>Site</label>
-        <select
-          id="filter-site"
-          className={controlClassName}
-          value={state.siteId ?? ""}
-          aria-label="Filter by site"
-          onChange={(e) =>
+        <Select
+          value={state.siteId === null ? "all" : String(state.siteId)}
+          onValueChange={(value) =>
             onChange((prev) => ({
               ...prev,
-              siteId: e.target.value ? Number(e.target.value) : null,
+              siteId: value === "all" ? null : Number(value),
               page: 1,
             }))
           }
         >
-          <option value="">All sites</option>
-          {sitesList.map((site) => (
-            <option key={site.id} value={site.id}>{site.name}</option>
-          ))}
-        </select>
+          <SelectTrigger id="filter-site" aria-label="Filter by site" className={controlClassName}>
+            <SelectValue placeholder="All sites" />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            <SelectItem value="all">All sites</SelectItem>
+            {sitesList.map((site) => (
+              <SelectItem key={site.id} value={String(site.id)}>{site.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="filter-group flex min-w-0 flex-col gap-1.5">
         <label htmlFor="sort-field" className={labelClassName}>Sort by</label>
-        <select
-          id="sort-field"
-          className={controlClassName}
+        <Select
           value={state.sortField}
-          aria-label="Sort by field"
-          onChange={(e) =>
+          onValueChange={(value) =>
             onChange((prev) => ({
               ...prev,
-              sortField: e.target.value as SortField,
+              sortField: value as SortField,
               page: 1,
             }))
           }
         >
-          <option value="created">Created date</option>
-          <option value="due">Due date</option>
-        </select>
+          <SelectTrigger id="sort-field" aria-label="Sort by field" className={controlClassName}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            <SelectItem value="created">Created date</SelectItem>
+            <SelectItem value="due">Due date</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="filter-group flex min-w-0 flex-col gap-1.5">
         <label htmlFor="sort-direction" className={labelClassName}>Order</label>
-        <select
-          id="sort-direction"
-          className={controlClassName}
+        <Select
           value={state.sortDirection}
-          aria-label="Sort direction"
-          onChange={(e) =>
+          onValueChange={(value) =>
             onChange((prev) => ({
               ...prev,
-              sortDirection: e.target.value as SortDirection,
+              sortDirection: value as SortDirection,
               page: 1,
             }))
           }
         >
-          <option value="desc">Newest first</option>
-          <option value="asc">Oldest first</option>
-        </select>
+          <SelectTrigger id="sort-direction" aria-label="Sort direction" className={controlClassName}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            <SelectItem value="desc">Newest first</SelectItem>
+            <SelectItem value="asc">Oldest first</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="filter-group flex items-end">

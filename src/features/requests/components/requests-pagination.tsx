@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ChevronRight } from "lucide-react";
 
 interface RequestsPaginationProps {
@@ -99,18 +106,24 @@ export function RequestsPagination({
           </Button>
         )}
 
-        <label className="sr-only" htmlFor="requests-page-size">Rows per page</label>
-        <select
-          id="requests-page-size"
-          className="ml-1 h-8 cursor-pointer rounded-lg border border-input bg-card px-2 text-xs text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15"
-          value={pageSize}
-          aria-label="Rows per page"
-          onChange={(event) => onPageSizeChange(Number(event.target.value))}
+        <label className="sr-only" id="requests-page-size-label">Rows per page</label>
+        <Select
+          value={String(pageSize)}
+          onValueChange={(value) => onPageSizeChange(Number(value))}
         >
-          {PAGE_SIZE_OPTIONS.map((size) => (
-            <option key={size} value={size}>{size} / page</option>
-          ))}
-        </select>
+          <SelectTrigger
+            aria-labelledby="requests-page-size-label"
+            aria-label="Rows per page"
+            className="ml-1 h-10 w-[100px] cursor-pointer border-input bg-card px-2 text-xs text-muted-foreground"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="end">
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <SelectItem key={size} value={String(size)}>{size} / page</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </nav>
   );
