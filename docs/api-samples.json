@@ -1,0 +1,144 @@
+{
+  "note": "Synthetic response examples based on docs/api.md. These are not live API payloads.",
+  "endpoints": {
+    "sites": {
+      "request": { "method": "GET", "path": "/v1/sites", "query": {} },
+      "http_status": 200,
+      "response": {
+        "data": [
+          {
+            "id": 11,
+            "name": "Example Singapore Site",
+            "timezone": "Asia/Singapore",
+            "business_hours": { "mon": { "open": "08:00", "close": "18:00" } }
+          },
+          {
+            "id": 12,
+            "name": "Example Sydney Site",
+            "timezone": "Australia/Sydney",
+            "business_hours": { "mon": { "open": "08:00", "close": "18:00" } }
+          },
+          {
+            "id": 13,
+            "name": "Example Jakarta Site",
+            "timezone": "Asia/Jakarta",
+            "business_hours": { "mon": { "open": "08:00", "close": "18:00" } }
+          }
+        ]
+      }
+    },
+    "staff": {
+      "request": { "method": "GET", "path": "/v1/staff", "query": {} },
+      "http_status": 200,
+      "response": { "data": [{ "id": 301, "name": "Example Staff" }] }
+    },
+    "statuses": {
+      "request": { "method": "GET", "path": "/v1/statuses", "query": {} },
+      "http_status": 200,
+      "response": {
+        "data": [
+          { "value": "pending", "label": "Pending" },
+          { "value": "processing", "label": "Processing" },
+          { "value": "complete", "label": "Complete" },
+          { "value": "canceled", "label": "Canceled" }
+        ]
+      }
+    },
+    "requests_page_1": {
+      "request": {
+        "method": "GET",
+        "path": "/v1/requests",
+        "query": { "page": 1, "per_page": 3 }
+      },
+      "http_status": 200,
+      "response": {
+        "data": [
+          {
+            "id": 1001,
+            "ref": "WO-SAMPLE-1001",
+            "title": "Example maintenance request",
+            "location": "Example location",
+            "site_id": 12,
+            "status": "pending",
+            "priority": "Medium",
+            "created_at": "2026-10-06T02:15:07Z",
+            "updated_at": "2026-10-06T03:40:00Z",
+            "due_on": "2026-10-07",
+            "assignee": { "id": 301, "name": "Stale Example Name" },
+            "deleted_at": null,
+            "merged_into_id": null
+          }
+        ],
+        "page": 1,
+        "per_page": 3,
+        "total_pages": 1,
+        "total": 1
+      }
+    },
+    "request_events": {
+      "request": {
+        "method": "GET",
+        "path": "/v1/requests/1001/events",
+        "query": { "page": 1 }
+      },
+      "http_status": 200,
+      "response": {
+        "data": [
+          {
+            "id": 2001,
+            "status": "processing",
+            "at": 1791874530,
+            "actor_id": 301,
+            "actor_name": "Historical Example Name",
+            "assignee_name": null,
+            "due_at": "07/10/2026 10:00",
+            "note": "Example event note",
+            "reverts_id": null
+          }
+        ],
+        "page": 1,
+        "per_page": 50,
+        "has_more": false
+      }
+    },
+    "changes_first_batch": {
+      "request": {
+        "method": "GET",
+        "path": "/v1/changes",
+        "query": { "limit": 2 }
+      },
+      "http_status": 200,
+      "response": {
+        "data": [
+          {
+            "seq": 1,
+            "type": "request.created",
+            "at": "2026-05-01T01:00:00Z",
+            "request": {
+              "id": 1001,
+              "ref": "WO-SAMPLE-1001",
+              "title": "Example maintenance request",
+              "site_id": 12,
+              "status": "pending"
+            }
+          },
+          {
+            "seq": 2,
+            "type": "event.created",
+            "at": "2026-05-01T01:00:00Z",
+            "request_id": 1001,
+            "event": {
+              "id": 2001,
+              "status": "processing",
+              "at": 1791874530,
+              "actor_id": 301,
+              "reverts_id": null
+            }
+          }
+        ],
+        "next_cursor": "<synthetic-cursor>",
+        "has_more": true
+      }
+    }
+  }
+}

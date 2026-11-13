@@ -4,5 +4,6 @@ coverage/
 .env
 .env.*
 !.env.example
+docs/api-samples.raw.json
 .DS_Store
 *.log
