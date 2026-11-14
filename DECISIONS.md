@@ -22,3 +22,5 @@ Write in English. Short bullet points are fine. Reviewers read this file alongsi
 
 - I did not leave out any required features. I focused on the requested workflow before optional table settings.
 - The app loads all requests in the selected date range, checks each one using its site's timezone, then splits them into pages. This keeps the date results accurate. If there are many more requests, I would improve loading and display speed while keeping the same date checks.
+
+Demo video: [Watch the app walkthrough](https://drive.google.com/file/d/1cxls_MtRqBHiktJkkgfObUWzl4JE9_6H/view?usp=sharing)
